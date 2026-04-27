@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Smart Grid Cutter PRO FINAL</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+body {
+    font-family: sans-serif;
+    background: #667eea;
+    color: #fff;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+}
+
+.card {
+    background: #fff;
+    color: #000;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.upload {
+    border: 2px dashed #667eea;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.suggestion {
+    display: inline-block;
+    padding: 12px;
+    border: 2px solid #667eea;
+    margin: 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #f8f9ff;
+    transition: all 0.2s;
+}
+
+.suggestion:hover {
+    transform: translateY(-2px);
+}
+
+.good {
+    border-color: #4caf50;
+    background: #e8f5e9;
+}
+
+.good {
+    border-color: green;
+}
+
+.note {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #fff3cd;
+    color: #856404;
+    font-size: 14px;
+}
+
+canvas {
+    max-width: 100%;
+}
+
+img {
+    max-width: 100%;
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+}
+
+input[type=range] {
+    width: 100%;
+}
+
+input[type=color] {
+    width: 50px;
+    height: 35px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+        <div class="upload" onclick="file.click()">📷 Tải ảnh</div>
+        <input type="file" id="file" hidden>
+
+        <div id="info" style="display:none"></div>
+        <div id="suggestions" style="margin-top:15px;display:none"></div>
+
+        <div id="controls" style="display:none">
+
+            <div style="display:flex;flex-wrap:wrap;gap:15px;align-items:center;margin-top:15px;justify-content:flex-start;">
+                <span>🎨 Lưới:</span>
+
+                <input type="color" id="gridColorPicker"
+                    value="#ffffff"
+                    onchange="setGridColor(this.value)"
+                    style="width:40px;height:32px;padding:0;border:none;border-radius:5px;cursor:pointer;">
+
+                <button onclick="autoGridColor()" style="padding:8px 12px;">Tự động</button>
+
+                <span style="margin-left:10px;">📏 Dày:</span>
+
+                <input type="range" id="gridThickness" min="1" max="10" value="2"
+                    onchange="setGridThickness(this.value)"
+                    style="width:80px;">
+
+                <span id="thicknessVal">2px</span>
+            </div>
+
+            <div style="margin-top:15px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="min-width:70px;">Hàng:</span>
+                    <span id="warnRows" style="color:#f59e0b;font-size:13px;display:none;">⚠️ cắt hình</span>
+                </div>
+
+                <input type="range" id="rows" min="1" max="10" step="0.01" value="4"
+                    style="width:100%;margin-top:5px;">
+
+                <span id="rowsVal" style="font-size:12px;color:#666;">4.00</span>
+            </div>
+
+            <div style="margin-top:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="min-width:70px;">Cột:</span>
+                    <span id="warnCols" style="color:#f59e0b;font-size:13px;display:none;">⚠️ cắt hình</span>
+                </div>
+
+                <input type="range" id="cols" min="1" max="10" step="0.01" value="4"
+                    style="width:100%;margin-top:5px;">
+
+                <span id="colsVal" style="font-size:12px;color:#666;">4.00</span>
+            </div>
+
+            <button onclick="cut()" style="margin-top:15px;">✂️ Cắt</button>
+        </div>
+    </div>
+
+    <div id="previewCard" class="card" style="display:none">
+        <canvas id="preview"></canvas>
+    </div>
+
+    <div id="resultCard" class="card" style="display:none">
+        <div id="result"></div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">❓ Hướng dẫn sử dụng</h3>
+
+        <div style="font-size:14px;line-height:1.8;">
+
+            <details style="margin-bottom:8px;">
+                <summary style="cursor:pointer;font-weight:bold;">1. Tải ảnh lên như thế nào?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Click vào vùng "📷 Tải ảnh" hoặc kéo thả ảnh vào đó. Hỗ trợ JPG, PNG và hầu hết định dạng.
+                </p>
+            </details>
+
+            <details style="margin-bottom:8px;">
+                <summary style="cursor:pointer;font-weight:bold;">2. Lưới cắt là gì?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Lưới hiển thị các đường chia ảnh thành nhiều phần bằng nhau.
+                </p>
+            </details>
+
+            <details style="margin-bottom:8px;">
+                <summary style="cursor:pointer;font-weight:bold;">3. Số Hàng và Cột là gì?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Hàng = chia dọc, Cột = chia ngang.
+                </p>
+            </details>
+
+            <details style="margin-bottom:8px;">
+                <summary style="cursor:pointer;font-weight:bold;">4. Cảnh báo "cắt hình" là gì?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Khi đường cắt đi qua vùng có nội dung ảnh.
+                </p>
+            </details>
+
+            <details style="margin-bottom:8px;">
+                <summary style="cursor:pointer;font-weight:bold;">5. Làm sao tải ảnh đã cắt?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Dùng nút lưu từng ảnh hoặc tải ZIP.
+                </p>
+            </details>
+
+            <details>
+                <summary style="cursor:pointer;font-weight:bold;">6. Gợi ý cắt là gì?</summary>
+                <p style="margin:8px 0 0 20px;color:#555;">
+                    Hệ thống tự đề xuất layout đẹp nhất.
+                </p>
+            </details>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+let img = new Image();
+let crops = [];
+let detected = {rows:1,cols:1};
+let gridColor = "white";
+let gridThickness = 2;
+let fileName = "";
+
+// ===== SET GRID COLOR =====
+function setGridColor(color){
+    gridColor = color;
+    gridColorPicker.value = color;
+    drawGrid();
+}
+
+// ===== AUTO GRID COLOR =====
+function autoGridColor(){
+    detectBG(img);
+    gridColorPicker.value = gridColor === "white" ? "#ffffff" : "#000000";
+    drawGrid();
+}
+
+// ===== SET GRID THICKNESS =====
+function setGridThickness(v){
+    gridThickness = parseInt(v);
+    thicknessVal.innerText = v + 'px';
+    drawGrid();
+}
+
+// ===== DETECT BACKGROUND COLOR =====
+function detectBG(image){
+    let c=document.createElement('canvas');
+    let ctx=c.getContext('2d');
+    c.width=10;c.height=10;
+    ctx.drawImage(image,0,0,10,10);
+    let d=ctx.getImageData(0,0,10,10).data;
+    let avg=0;
+    for(let i=0;i<d.length;i+=4){
+        avg+=(d[i]+d[i+1]+d[i+2])/3;
+    }
+    avg/=d.length/4;
+    gridColor=avg>200?"black":"white";
+}
+
+// ===== DETECT GRID =====
+function detectGrid(image){
+    let w=image.width, h=image.height;
+    let r=Math.round(h/100);
+    let c=Math.round(w/100);
+    return {rows:r,cols:c};
+}
+
+// ===== LOAD IMAGE =====
+file.onchange=e=>{
+    let f=e.target.files[0];
+    if(!f) return;
+    fileName=f.name.replace(/\.[^/.]+$/,'');
+    let rd=new FileReader();
+    rd.onload=()=>{
+        img.onload=()=>{
+            renderSuggestions();
+            preview.width=img.width;
+            preview.height=img.height;
+            preview.getContext('2d').drawImage(img,0,0);
+
+            detected=detectGrid(img);
+            detectBG(img);
+
+            info.style.display='block';
+            info.innerHTML=`📐 ${img.width}×${img.height} | 🧮 Gợi ý: ${detected.rows}×${detected.cols}`;
+            suggestions.style.display='block';
+            controls.style.display='block';
+            previewCard.style.display='block';
+            resultCard.style.display='none';
+
+            rows.value=detected.rows;
+            cols.value=detected.cols;
+            rowsVal.innerText=parseFloat(rows.value).toFixed(2);
+            colsVal.innerText=parseFloat(cols.value).toFixed(2);
+
+            drawGrid();
+            checkWarn();
+        }
+        img.src=rd.result;
+    }
+    rd.readAsDataURL(f);
+}
+
+// ===== DRAW GRID (THẬP PHÂN) =====
+function drawGrid(){
+    let ctx=preview.getContext('2d');
+    ctx.drawImage(img,0,0);
+
+    ctx.strokeStyle=gridColor;
+    ctx.lineWidth=gridThickness;
+    ctx.setLineDash([8,5]);
+
+    let r=parseFloat(rows.value);
+    let c=parseFloat(cols.value);
+
+    let cw=preview.width/c;
+    let ch=preview.height/r;
+
+    for(let i=1;i<c;i++){
+        ctx.beginPath();
+        ctx.moveTo(i*cw,0);
+        ctx.lineTo(i*cw,preview.height);
+        ctx.stroke();
+    }
+
+    for(let i=1;i<r;i++){
+        ctx.beginPath();
+        ctx.moveTo(0,i*ch);
+        ctx.lineTo(preview.width,i*ch);
+        ctx.stroke();
+    }
+}
+
+// ===== WARNING - CHECK IF GRID CUTS THROUGH IMAGE =====
+function checkWarn(){
+    let r=parseFloat(rows.value);
+    let c=parseFloat(cols.value);
+
+    let cw=img.width/c;
+    let ch=img.height/r;
+
+    let hitsRows=false, hitsCols=false;
+
+    // Check horizontal lines
+    for(let i=1;i<r;i++){
+        let y=Math.round(i*ch);
+        if(hasColoredPixel(img,y,'h')){hitsRows=true;break;}
+    }
+
+    // Check vertical lines
+    for(let i=1;i<c;i++){
+        let x=Math.round(i*cw);
+        if(hasColoredPixel(img,x,'v')){hitsCols=true;break;}
+    }
+
+    warnRows.style.display=hitsRows?'inline':'none';
+    warnCols.style.display=hitsCols?'inline':'none';
+}
+
+function hasColoredPixel(image, pos, dir){
+    const size=20;
+    const c=document.createElement('canvas');
+    const ctx=c.getContext('2d');
+    c.width=size;c.height=size;
+    ctx.drawImage(image,0,0,size,size);
+    const d=ctx.getImageData(0,0,size,size).data;
+
+    let bgR=d[0],bgG=d[1],bgB=d[2];
+    let threshold=30;
+
+    const samples=dir==='h'?c.width:c.height;
+    for(let i=0;i<samples;i+=3){
+        let x=dir==='h'?i:pos;
+        let y=dir==='h'?pos:i;
+
+        let sx=Math.floor(x*size/image.width);
+        let sy=Math.floor(y*size/image.height);
+        let idx=(sy*size+sx)*4;
+
+        let dr=Math.abs(d[idx]-bgR);
+        let dg=Math.abs(d[idx+1]-bgG);
+        let db=Math.abs(d[idx+2]-bgB);
+
+        if(dr+dg+db>threshold*3) return true;
+    }
+    return false;
+}
+
+// ===== SLIDER =====
+rows.oninput=()=>{
+    rowsVal.innerText=parseFloat(rows.value).toFixed(2);
+    drawGrid();
+    if(img.width) checkWarn();
+}
+cols.oninput=()=>{
+    colsVal.innerText=parseFloat(cols.value).toFixed(2);
+    drawGrid();
+    if(img.width) checkWarn();
+}
+
+// ===== CUT (CHUẨN KHÔNG LỆCH) =====
+function cut(){
+    let r=parseFloat(rows.value);
+    let c=parseFloat(cols.value);
+
+    let rowsInt=Math.floor(r);
+    let colsInt=Math.floor(c);
+
+    crops=[];
+    result.innerHTML='';
+
+    let cw=img.width/c;
+    let ch=img.height/r;
+
+    for(let y=0;y<rowsInt;y++){
+        for(let x=0;x<colsInt;x++){
+
+            let sx=Math.round(x*cw);
+            let sy=Math.round(y*ch);
+            let ex=Math.round((x+1)*cw);
+            let ey=Math.round((y+1)*ch);
+
+            let w=ex-sx;
+            let h=ey-sy;
+
+            let cv=document.createElement('canvas');
+            cv.width=w;
+            cv.height=h;
+
+            let ctx=cv.getContext('2d');
+
+            ctx.drawImage(img,
+                sx,sy,w,h,
+                0,0,w,h
+            );
+
+            let url=cv.toDataURL();
+            crops.push(url);
+        }
+    }
+    showResults();
+}
+
+// ===== DOWNLOAD SINGLE =====
+function downloadSingle(url, index){
+    let a=document.createElement('a');
+    a.href=url;
+    a.download=`${fileName}_${String(index+1).padStart(3,'0')}.png`;
+    a.click();
+}
+
+// ===== ZIP =====
+async function downloadZip(){
+    let zip=new JSZip();
+    crops.forEach((c,i)=>{
+        zip.file(`${fileName}_${String(i+1).padStart(3,'0')}.png`, c.split(',')[1], {base64:true});
+    });
+    let blob=await zip.generateAsync({type:"blob"});
+    let a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${fileName}_cut.zip`;
+    a.click();
+}
+
+// ===== DOWNLOAD ALL IMAGES =====
+function downloadAllImages(){
+    crops.forEach((url,i)=>{
+        setTimeout(()=>downloadSingle(url,i), i*300);
+    });
+}
+
+// ===== SHOW RESULT =====
+function showResults(){
+    result.innerHTML='';
+    let header=document.createElement('div');
+    header.style.cssText='display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:15px;padding:10px;background:#f0f0f0;border-radius:8px;';
+    header.innerHTML=`
+        <span style="font-weight:bold;flex:1">📦 ${crops.length} ảnh đã cắt</span>
+        <button onclick="downloadAllImages()" style="background:#4caf50;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">📥 Tải tất cả ảnh</button>
+        <button onclick="downloadZip()" style="background:#667eea;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">📦 Tải ZIP</button>
+    `;
+    result.appendChild(header);
+
+    let grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;';
+    crops.forEach((url,i)=>{
+        let item=document.createElement('div');
+        item.style.cssText='background:#f8f9ff;border-radius:10px;overflow:hidden;text-align:center;';
+        item.innerHTML=`
+            <img src="${url}" style="width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;" onclick="downloadSingle('${url}',${i})">
+            <div style="padding:8px;font-size:12px;color:#666;">${String(i+1).padStart(3,'0')}</div>
+            <button onclick="downloadSingle('${url}',${i})" style="width:100%;padding:8px;background:#667eea;color:white;border:none;cursor:pointer;font-weight:bold;">💾 Lưu</button>
+        `;
+        grid.appendChild(item);
+    });
+    result.appendChild(grid);
+
+    resultCard.style.display='block';
+}
+
+// ===== GENERATE SUGGESTIONS =====
+function generateSuggestions(width, height){
+    const presets = [16, 12, 9, 6, 4, 3, 2];
+    const suggestions = [];
+
+    presets.forEach(total => {
+        for(let r=1; r<=total; r++){
+            if(total % r === 0){
+                let c=total/r;
+                suggestions.push({r:r, c:c, total:total});
+            }
+        }
+    });
+
+    return suggestions.map(p=>{
+        let cellW=width/p.c, cellH=height/p.r;
+        let ratio=Math.min(cellW,cellH)/Math.max(cellW,cellH);
+        return {...p, score:ratio};
+    }).sort((a,b)=>b.score-a.score).slice(0,8);
+}
+
+// ===== RENDER SUGGESTIONS =====
+function renderSuggestions(){
+    suggestions.innerHTML='';
+    const list=generateSuggestions(img.width, img.height);
+
+    list.forEach(s=>{
+        let div=document.createElement('div');
+        div.className='suggestion';
+        div.innerHTML=`<b>${s.r}×${s.c}</b><br><small>${s.total} ảnh</small>`;
+        div.onclick=()=>{
+            rows.value=s.r;
+            cols.value=s.c;
+            rowsVal.innerText=parseFloat(rows.value).toFixed(2);
+            colsVal.innerText=parseFloat(cols.value).toFixed(2);
+            drawGrid();
+            checkWarn();
+            document.querySelectorAll('.suggestion').forEach(b=>b.classList.remove('good'));
+            div.classList.add('good');
+        };
+        suggestions.appendChild(div);
+        if(s.r===detected.rows && s.c===detected.cols) div.classList.add('good');
+    });
+}
+</script>
+
+</body>
+</html>
